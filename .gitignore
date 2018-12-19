@@ -1,0 +1,8 @@
+*.o
+*.so
+*.dll
+.*.swp
+*.class
+*.h
+*.jar
+*.Rprof

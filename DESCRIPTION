@@ -1,0 +1,12 @@
+Package: jdbc
+Version: 0.1
+Title: JDBC Interface
+Author: Dominik Ernst <dernst@gmx.de>
+Maintainer: Dominik Ernst <dernst@gmx.de>
+Depends: R (>= 2.4.0)
+Description: db
+License: MIT
+RoxygenNote: 6.1.1
+Encoding: UTF-8
+Imports: DBI, rJava, methods
+Suggests: testthat

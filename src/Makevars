@@ -1,0 +1,12 @@
+PKG_CFLAGS=$(JAVA_CPPFLAGS)
+PKG_LIBS=$(JAVA_LIBS)
+
+all: jdbc $(SHLIB)
+
+#TODO: maybe this could be made less awful
+#TODO: perhaps we should use javac/jar from JAVA_HOME (if possible)
+jdbc:
+	(cd ../java && javac -d . *.java)
+	(cd ../java && jar cvf jdbc.jar de)
+	(cd ../java && cp -v jdbc.jar ../inst/java)
+

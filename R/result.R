@@ -1,0 +1,92 @@
+#' jdbc results class.
+#' 
+#' @keywords internal
+#' @export
+setClass("jdbcResult", 
+         contains = "DBIResult",
+         slots = list(jresult = 'jobjRef'),
+         prototype = list(jresult = .jnull())
+)
+
+#' Bind data to a statement
+#' @export
+setMethod("dbBind", "jdbcResult", function(res, params=list(), batchsize=4096L, ...) {
+    stopifnot(is.list(params))
+    lengths = sapply(params, length)
+    stopifnot(all(lengths == lengths[1]))
+    stopifnot(all(sapply(params, class) %in% c("integer", "numeric", "character")))
+
+    .Call("jdbc_set_df", params)
+
+    coltypes = with(list(ct=sapply(params, class)),
+                    ifelse(ct == "integer", 1L,
+                    ifelse(ct == "numeric", 2L, 9L)))
+
+    bw = .jnew("de/misc/jdbc/BulkWrite", res@jresult, coltypes, lengths[1])
+    .jcall(bw, "V", "execute", as.integer(batchsize))
+
+    return(NULL)
+
+    ps = res@jresult
+    for(i in seq_along(params)) {
+        idx = i-1L
+        p = params[[i]]
+        if(class(p) == "integer") {
+            if(is.na(p)) {
+                .jcall(ps, "V", "setNull", idx, 4L)
+            } else {
+                .jcall(ps, "V", "setInt", idx, p)
+            }
+        } else if(class(p) == "numeric") {
+            if(is.na(p)) {
+                .jcall(ps, "V", "setNull", idx, 6L) #TODO: check this
+            } else {
+                .jcall(ps, "V", "setDouble", idx, p)
+            }
+        } else {
+            if(is.na(p))
+                .jcall(ps, "V", "setNull", idx, 1L)
+            else
+                .jcall(ps, "V", "setString", idx, p)
+        }
+    }
+   
+    rs = .jcall(ps, "I", "executeUpdate")
+    rs
+})
+
+#' @export
+setMethod("dbGetRowsAffected", "jdbcResult", function(res, ...) {
+    #TODO: test if this was already executed? would it make sense
+    # to cache the result and only call executeUpdate if the
+    # result is not cached yet?
+    rs = .jcall(res@jresult, "I", "executeUpdate")
+    rs
+})
+
+#' @export
+setMethod("dbClearResult", "jdbcResult", function(res, ...) {
+    # free resources
+    .jcall(res@jresult, "V", "close")
+    TRUE
+})
+
+#' Retrieve records from jdbc query
+#' @export
+setMethod("dbFetch", "jdbcResult", function(res, n = -1L, ...) {
+    stopifnot(length(n) == 1)
+    if(n < -1L)
+        stop("invalid value of n")
+    if(is.infinite(n)) n = -1L
+    stopifnot(as.integer(n) == n)
+
+    jdbc_get_query(res, n=n)
+})
+
+
+#' @export
+setMethod("dbHasCompleted", "jdbcResult", function(res, ...) {
+    .jcall(res@jresult, "Z", "isClosed")
+})
+
+

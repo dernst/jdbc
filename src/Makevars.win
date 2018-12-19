@@ -1,0 +1,12 @@
+PKG_CFLAGS="-I$(JAVA_HOME)/include" "-I$(JAVA_HOME)/include/win32"
+PKG_LIBS="-L$(JAVA_HOME)/jre/bin" "-L$(JAVA_HOME)/jre/bin/server" -ljvm
+
+all: jdbc $(SHLIB)
+
+#TODO: maybe this could be made less awful
+jdbc:
+	mkdir -p ../inst/java
+	(cd ../java && javac -d . *.java)
+	(cd ../java && jar cvf jdbc.jar de)
+	(cd ../java && cp -v jdbc.jar ../inst/java)
+
