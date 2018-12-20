@@ -14,13 +14,19 @@ setMethod("dbBind", "jdbcResult", function(res, params=list(), batchsize=4096L, 
     stopifnot(is.list(params))
     lengths = sapply(params, length)
     stopifnot(all(lengths == lengths[1]))
-    stopifnot(all(sapply(params, class) %in% c("integer", "numeric", "character")))
+    stopifnot(all(sapply(params, class) %in% c("integer", "numeric", "character", "factor")))
 
-    .Call("jdbc_set_df", params)
 
+    browser()
+
+    ct = sapply(params, class)
+    params[ct == "factor"] = lapply(params[ct == "factor"], as.character)
     coltypes = with(list(ct=sapply(params, class)),
                     ifelse(ct == "integer", 1L,
                     ifelse(ct == "numeric", 2L, 9L)))
+
+
+    .Call("jdbc_set_df", params)
 
     bw = .jnew("de/misc/jdbc/BulkWrite", res@jresult, coltypes, lengths[1])
     .jcall(bw, "V", "execute", as.integer(batchsize))

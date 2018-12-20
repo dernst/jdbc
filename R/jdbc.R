@@ -157,22 +157,4 @@ jdbc_rbind = function(lst, coltypes=sapply(lst[[1]], class)) {
     to
 }
 
-jdbc_send_update = function(conn, sql, data, batchsize=4096L) {
-    ps <- .jcall(conn@jc, "Ljava/sql/PreparedStatement;", "prepareStatement", sql, check=FALSE)
-    coltypes = with(list(ct=sapply(data,class)),
-                    ifelse(ct == "integer", 1L,
-                    ifelse(ct == "numeric", 2L, 9L)))
-
-    .Call("jdbc_set_df", data)
-    bw = .jnew("de/misc/jdbc/BulkWrite", ps, coltypes, nrow(data))
-
-    .jcall(bw, "V", "execute", as.integer(batchsize))
-    #ex = .jgetEx()
-    #.jcall(ex, "Ljava/sql/SQLException;", "getNextException")
-}
-
-
-
-
-
 
