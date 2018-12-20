@@ -5,7 +5,7 @@ all: jdbc $(SHLIB)
 
 #TODO: maybe this could be made less awful
 jdbc:
-	mkdir -p ../inst/java
+	mkdir -p ../inst/java || exit 0
 	(cd ../java && javac -d . *.java)
 	(cd ../java && jar cvf jdbc.jar de)
 	(cd ../java && cp -v jdbc.jar ../inst/java)
