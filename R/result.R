@@ -17,8 +17,6 @@ setMethod("dbBind", "jdbcResult", function(res, params=list(), batchsize=4096L, 
     stopifnot(all(sapply(params, class) %in% c("integer", "numeric", "character", "factor")))
 
 
-    browser()
-
     ct = sapply(params, class)
     params[ct == "factor"] = lapply(params[ct == "factor"], as.character)
     coltypes = with(list(ct=sapply(params, class)),
@@ -74,7 +72,7 @@ setMethod("dbGetRowsAffected", "jdbcResult", function(res, ...) {
 setMethod("dbClearResult", "jdbcResult", function(res, ...) {
     # free resources
     .jcall(res@jresult, "V", "close")
-    TRUE
+    invisible(TRUE)
 })
 
 #' Retrieve records from jdbc query
@@ -86,7 +84,8 @@ setMethod("dbFetch", "jdbcResult", function(res, n = -1L, ...) {
     if(is.infinite(n)) n = -1L
     stopifnot(as.integer(n) == n)
 
-    jdbc_get_query(res, n=n)
+    ret = jdbc_get_query(res, n=n)
+    ret
 })
 
 

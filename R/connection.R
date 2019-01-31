@@ -47,9 +47,13 @@ setMethod("dbSendStatement", signature("jdbcConnection", "character"), function(
 
 #' @exportMethod dbQuoteIdentifier
 setMethod("dbQuoteIdentifier", c("jdbcConnection", "character"), function(conn, x, ...) {
+    if(length(x) < 1L)
+        return(SQL(character()))
+    if(.jcall(conn@jconn, "Z", "isClosed"))
+        stop("connection is closed")
     md = .jcall(conn@jconn, "Ljava/sql/DatabaseMetaData;", "getMetaData")
     qs = .jcall(md, "S", "getIdentifierQuoteString")
-    SQL(paste0(qs, x, qs), names=x)
+    SQL(paste0(qs, x, qs), names=names(x))
 })
 
 #' @exportMethod dbQuoteIdentifier
@@ -94,5 +98,54 @@ setMethod("dbReadTable", c("jdbcConnection", "character"), function(conn, name, 
     }
 
     dbGetQuery(conn, paste0("SELECT * FROM ", qname))
+})
+
+setMethod("dbRemoveTable", c("jdbcConnection", "character"),
+    function(conn, name, schema=NULL) {
+    sql = if(is.null(schema))
+        paste0("DROP TABLE ", name)
+    else 
+        paste0("DROP TABLE ", schema, ".", name)
+    dbExecute(conn, sql)
+})
+
+setMethod("dbWriteTable", c("jdbcConnection", "character", "data.frame"),
+    function(conn, name, value, ...,
+             row.names = FALSE, overwrite = FALSE, append = FALSE,
+             field.types = NULL, temporary = FALSE,
+             schema=NULL) {
+
+    if (overwrite && append)
+        stop("overwrite and append cannot both be TRUE", call. = FALSE)
+
+    found = dbExistsTable(conn, name, schema=schema)
+    if(found && overwrite)
+        dbRemoveTable(conn, name, schema=schema)
+
+    fcts = sapply(value, class) == "factor"
+    value[fcts] = lapply(value[fcts], as.character)
+    stopifnot(all(sapply(value, class) %in% c("character", "numeric", "integer")))
+
+    if(!found || overwrite) {
+        sql = sqlCreateTable(conn, name, value, field.types=field.types,
+                             schema=schema, row.names=FALSE,
+                             temporary=temporary)
+        dbExecute(conn, sql)
+    }
+
+    if(nrow(value) > 0) {
+        name = dbQuoteIdentifier(conn, name)
+        fields = dbQuoteIdentifier(conn, names(value))
+
+        params = rep("?", length(fields))
+        sql = paste0(
+            "INSERT INTO ", name, " (", paste0(fields, collapse = ", "), ")\n",
+            "VALUES (", paste0(params, collapse = ", "), ")")
+
+        stmt = dbSendStatement(conn, sql)
+        dbBind(stmt, value)
+    }
+
+    invisible(TRUE)
 })
 

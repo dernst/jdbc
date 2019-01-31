@@ -46,7 +46,7 @@ get_column_names = function(md) {
 jdbc_get_query = function(res, n=-1L, chunksize=4096L) {
     stopifnot(is(res, "jdbcResult"))
     rs = res@jresult
-    md <- .jcall(res@jresult, "Ljava/sql/ResultSetMetaData;", "getMetaData", check=FALSE)
+    md <- .jcall(res@jresult, "Ljava/sql/ResultSetMetaData;", "getMetaData")
 
     #if(.jcall(rs, "Z", "isClosed")) {
     #    stop("result set is already closed")
@@ -74,7 +74,9 @@ jdbc_get_query = function(res, n=-1L, chunksize=4096L) {
     return_empty = function() {
         tmp = lapply(coltypes, function(x) vector(mode=x, length=0))
         names(tmp) = col_names
-        return(as.data.frame(tmp))
+        attr(tmp, "row.names") <- .set_row_names(0L)
+        class(tmp) <- "data.frame"
+        return(tmp)
     }
 
     if(n == 0L) {
