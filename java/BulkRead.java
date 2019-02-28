@@ -21,6 +21,42 @@ class StringResult {
     public String value;
 }
 
+class StringResults {
+    public int size;
+    public int used;
+    public int[] row;
+    public int[] col;
+    public String[] values;
+
+    public StringResults() {
+        this(2048);
+    }
+
+    public StringResults(int size) {
+        this.size = size;
+        this.used = 0;
+        if(size > 0) {
+            row = new int[size];
+            col = new int[size];
+            values = new String[size];
+        }
+    }
+
+    public boolean full() {
+        if(this.used >= this.size)
+            return true;
+        else
+            return false;
+    }
+
+    public void put(int c, int r, String v) {
+        final int i = this.used++;
+        col[i] = c;
+        row[i] = r;
+        values[i] = v;
+    }
+}
+
 class StringResultProducer implements Runnable {
     //private StringResult
     //private ArrayBlockingQueue<StringResult> queue;
@@ -52,7 +88,7 @@ public class BulkRead {
     private int[] coltypes;
 
     //private BlockingQueue<ResultRow> queue;
-    private BlockingQueue<StringResult> queue = null;
+    private BlockingQueue<StringResults> queue = null;
 
     public static final double NA_real = Double.longBitsToDouble(0x7ff00000000007a2L);
     public static final int NA_integer = -2147483648;
@@ -83,18 +119,24 @@ public class BulkRead {
     public native void cb_set_bytes(int col, int row, byte[] s);
 
     public int fetch_async(int chunksize) throws SQLException, IOException, InterruptedException {
-        this.queue = new ArrayBlockingQueue<StringResult>(32);
+        //this.queue = new ArrayBlockingQueue<StringResult>(32);
+        this.queue = new ArrayBlockingQueue<StringResults>(32);
         StringResultProducer srp = new StringResultProducer(this, chunksize);
 
         Thread t = new Thread(srp);
         t.start();
 
         while(true) {
-            StringResult sr = this.queue.take();
+            StringResults sr = this.queue.take();
             //System.out.println("parent got some");
-            if(sr.col < 0)
+            if(sr.size < 1)
                 break;
-            cb_set_string(sr.col, sr.row, sr.value);
+            //cb_set_string(sr.col, sr.row, sr.value);
+            for(int i = 0; i<sr.used; i++) {
+                //System.out.println("cb_set_string: "+sr.col[i]+", "+sr.row[i]);
+                cb_set_string(sr.col[i], sr.row[i], sr.values[i]);
+            }
+            sr = null;
         }
 
         //System.out.println("ok done");
@@ -107,6 +149,9 @@ public class BulkRead {
 
     public int fetch(int chunksize) throws SQLException, IOException, InterruptedException {
         int row = 0;
+        StringResults sr = null;
+        if(this.queue != null)
+            sr = new StringResults();
 
         while(row < chunksize && this.rs.next()) {
             for(int col=0; col<coltypes.length; col++) {
@@ -123,13 +168,21 @@ public class BulkRead {
                         val = NA_real;
                     cb_set_numeric(col, row, val);
                 } else {
-                    /*
-                    String val = this.rs.getString(col+1);
-                    byte[] v = val != null ? val.getBytes("UTF-8") : null;
-                    cb_set_bytes(col, row, v);
-                    */
-                    String val = this.rs.getString(col+1);
-                    cb_set_string(col, row, val);
+                    // synchronous
+                    if(this.queue == null) {
+                        String val = this.rs.getString(col+1);
+                        cb_set_string(col, row, val);
+                    } else {
+                        //async
+                        String val = this.rs.getString(col+1);
+                        if(val != null) {
+                            sr.put(col, row, val);
+                            if(sr.full()) {
+                                this.queue.put(sr);
+                                sr = new StringResults();
+                            }
+                        }
+                    }
 
                     /*
                     if(val != null) {
@@ -148,7 +201,11 @@ public class BulkRead {
         }
 
         if(this.queue != null) {
-            this.queue.put(new StringResult(-1,-1,null));
+            //this.queue.put(new StringResult(-1,-1,null));
+            if(sr.used > 0)
+                this.queue.put(sr);
+            sr = null;
+            this.queue.put(new StringResults(-1));
         }
 
         return row;
