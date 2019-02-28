@@ -197,36 +197,17 @@ void cb_set_string(JNIEnv *env, jobject obj, jint col, jint row, jstring str) {
         (*env)->ReleaseStringCritical(env, str, c);
     }
 
-    int len = (*env)->GetStringLength(env, str);
+    // TODO: perhaps we don't have to retrieve both lengths?!
+    int len = (*env)->GetStringUTFLength(env, str);
     string_buffer_ensure_size(len+1);
 
-    //printf("%d\n", len);
-    //string_buffer[len]=0;
-
-    (*env)->GetStringUTFRegion(env, str, 0, len, (char*)string_buffer);
+    int blen = (*env)->GetStringLength(env, str);
+    (*env)->GetStringUTFRegion(env, str, 0, blen, (char*)string_buffer);
 
     SEXP r_col = VECTOR_ELT(current_df, col);
     SEXP foo = mkCharLenCE(string_buffer, len, CE_UTF8);
     SET_STRING_ELT(r_col, row, foo);
 
-
-    if(0) {
-        const char *c = (*env)->GetStringUTFChars(env, str, NULL);
-        if(c == NULL) {
-            //puts("> c NULL");
-            return;
-        }
-
-        //int len = (*env)->GetStringUTFLength(env, str);
-        int len = strlen(c);
-
-        SEXP r_col = VECTOR_ELT(current_df, col);
-        SEXP foo = mkCharLenCE(c, len, CE_UTF8);
-        SET_STRING_ELT(r_col, row, foo);
-
-        //printf("%s\n", c);
-        (*env)->ReleaseStringUTFChars(env, str, c);
-    }
     return;
 }
 
