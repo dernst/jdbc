@@ -3,9 +3,9 @@
 #' @keywords internal
 #' @export
 setClass("jdbcResult", 
-         contains = "DBIResult",
-         slots = list(jresult = 'jobjRef'),
-         prototype = list(jresult = .jnull())
+    contains = "DBIResult",
+    slots = list(jresult = 'jobjRef', env='environment'),
+    prototype = list(jresult = .jnull(), env=new.env(TRUE, emptyenv()))
 )
 
 #' Bind data to a statement
@@ -26,10 +26,12 @@ setMethod("dbBind", "jdbcResult", function(res, params=list(), batchsize=4096L, 
 
     .Call("jdbc_set_df", params)
 
-    bw = .jnew("de/misc/jdbc/BulkWrite", res@jresult, coltypes, lengths[1])
-    .jcall(bw, "V", "execute", as.integer(batchsize))
+    bw = .jnew("de/misc/jdbc/BulkWrite",res@jresult,
+               .jarray(coltypes), lengths[1])
+    rows_affected = .jcall(bw, "I", "execute", as.integer(batchsize))
+    assign("rows_affected", rows_affected, envir=res@env)
 
-    return(NULL)
+    return(rows_affected)
 
     ps = res@jresult
     for(i in seq_along(params)) {
@@ -64,6 +66,8 @@ setMethod("dbGetRowsAffected", "jdbcResult", function(res, ...) {
     #TODO: test if this was already executed? would it make sense
     # to cache the result and only call executeUpdate if the
     # result is not cached yet?
+    if(exists("rows_affected", envir=res@env))
+        return(get("rows_affected", envir=res@env))
     rs = .jcall(res@jresult, "I", "executeUpdate")
     rs
 })

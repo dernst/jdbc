@@ -42,8 +42,21 @@ setMethod("dbSendQuery", signature("jdbcConnection", "character"),
 setMethod("dbSendStatement", signature("jdbcConnection", "character"), function(conn, statement, ...) {
     statement = as.character(statement)
     rs = .jcall(conn@jconn, "Ljava/sql/PreparedStatement;", "prepareStatement", statement)
-    new("jdbcResult", jresult=rs)
+    new("jdbcResult", jresult=rs, env=new.env(TRUE, emptyenv()))
 })
+
+
+#' @rdname hidden_aliases
+#' @export
+setMethod("dbExecute", signature("DBIConnection", "character"),
+    function(conn, statement, param=list(), ...) {
+        rs <- dbSendStatement(conn, statement, ...)
+        if(length(param) > 0)
+            dbBind(rs, params=param)
+        on.exit(dbClearResult(rs))
+        dbGetRowsAffected(rs)
+    }
+)
 
 #' @exportMethod dbQuoteIdentifier
 setMethod("dbQuoteIdentifier", c("jdbcConnection", "character"), function(conn, x, ...) {
@@ -103,10 +116,12 @@ setMethod("dbReadTable", c("jdbcConnection", "character"), function(conn, name, 
 setMethod("dbRemoveTable", c("jdbcConnection", "character"),
     function(conn, name, schema=NULL) {
     sql = if(is.null(schema))
-        paste0("DROP TABLE ", name)
+        paste0("DROP TABLE ", dbQuoteIdentifier(conn, name))
     else 
-        paste0("DROP TABLE ", schema, ".", name)
-    dbExecute(conn, sql)
+        paste0("DROP TABLE ", dbQuoteIdentifier(conn, schema), ".",
+               dbQuoteIdentifier(conn, name))
+    ret = dbExecute(conn, sql)
+    ret > 0
 })
 
 setMethod("dbWriteTable", c("jdbcConnection", "character", "data.frame"),
