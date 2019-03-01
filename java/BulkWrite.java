@@ -19,8 +19,9 @@ public class BulkWrite {
         this.nrows = nrows;
     }
 
-    public void execute(int batchsize) throws SQLException {
+    public int execute(int batchsize) throws SQLException {
         int batch=0;
+        int update_count=0;
         for(int row=0; row<nrows; row++) {
             for(int col=0; col<coltypes.length; col++) {
                 if(coltypes[col] == 1) {
@@ -32,7 +33,6 @@ public class BulkWrite {
                     if(v != null)
                         stmt.setString(col+1, v);
                     else {
-                        //System.out.println("set NULL string");
                         stmt.setNull(col+1, Types.VARCHAR);
                     }
                 }
@@ -41,11 +41,18 @@ public class BulkWrite {
             stmt.addBatch();
 
             if(++batch >= batchsize) {
-                stmt.executeBatch();
+                int[] counts = stmt.executeBatch();
+                for(int i=0; i<counts.length; i++)
+                    update_count += counts[i];
                 batch=0;
             }
         }
-        stmt.executeBatch();
+
+        int[] counts = stmt.executeBatch();
+        for(int i=0; i<counts.length; i++)
+            update_count += counts[i];
+
+        return update_count;
     }
 };
 
