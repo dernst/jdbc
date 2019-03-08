@@ -95,6 +95,9 @@ setMethod("dbFetch", "jdbcResult", function(res, n = -1L, ...) {
 
 #' @export
 setMethod("dbHasCompleted", "jdbcResult", function(res, ...) {
+    # Apparently for statements we're supposed to always return TRUE
+    if(.jinherits(res@jresult, "java/sql/PreparedStatement"))
+        return(TRUE)
     .jcall(res@jresult, "Z", "isClosed")
 })
 
