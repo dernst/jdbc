@@ -142,6 +142,7 @@ jdbc_get_query = function(res, n=-1L, chunksize=4096L) {
         return(return_empty())
     ret = jdbc_rbind(list_of_dfs)
     names(ret) = col_names
+    rownames(ret) = seq.int(nrow(ret))
     ret
 }
 
