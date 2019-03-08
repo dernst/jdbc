@@ -101,4 +101,14 @@ setMethod("dbHasCompleted", "jdbcResult", function(res, ...) {
     .jcall(res@jresult, "Z", "isClosed")
 })
 
+#' @rdname jdbcConnection
+#' @inheritParams DBI::dbIsValid
+#' @export
+setMethod("dbIsValid", "jdbcResult",
+function(dbObj, ...) {
+    #TODO: should return FALSE only after dbClearResult
+    return(!is.jnull(dbObj@jresult))
+})
+
+
 
