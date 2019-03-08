@@ -113,8 +113,9 @@ setMethod("dbReadTable", c("jdbcConnection", "character"), function(conn, name, 
     dbGetQuery(conn, paste0("SELECT * FROM ", qname))
 })
 
+#TODO: do we need to handle temporary tables?
 setMethod("dbRemoveTable", c("jdbcConnection", "character"),
-    function(conn, name, schema=NULL) {
+    function(conn, name, schema=NULL, temporary=FALSE) {
     sql = if(is.null(schema))
         paste0("DROP TABLE ", dbQuoteIdentifier(conn, name))
     else 
@@ -163,4 +164,15 @@ setMethod("dbWriteTable", c("jdbcConnection", "character", "data.frame"),
 
     invisible(TRUE)
 })
+
+#' @rdname jdbcConnection
+#' @inheritParams DBI::dbIsValid
+#' @export
+setMethod("dbIsValid", "jdbcConnection",
+function(dbObj, ...) {
+    if(is.jnull(dbObj@jconn))
+        return(FALSE)
+    .jcall(dbObj@jconn, "Z", "isValid", 0L)
+})
+
 
